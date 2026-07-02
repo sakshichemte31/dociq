@@ -35,16 +35,6 @@ DocIQ is a **production-grade, polyglot AI document intelligence platform** that
 
 ---
 
-## 🎬 Demo
-
-> ⚠️ **TODO before submitting:** replace this section with your actual demo video link and 2–3 screenshots/GIFs of the app running (upload → summary → Q&A → diff). Judges decide whether to dig deeper within the first 30 seconds — a working visual here matters more than anything else in this README.
-
-- **Demo video:** `<add your YouTube/Loom link here>`
-- **Screenshot — Chat with citations:** `<add image here>`
-- **Screenshot — Semantic Diff view:** `<add image here>`
-
----
-
 ## 🏗️ Architecture
 
 ```
@@ -102,8 +92,8 @@ This starts: PostgreSQL, Zookeeper, Kafka, Redis, Java API, Python ML, React UI.
 
 | Service | URL |
 |---|---|
-| **React UI** | http://localhost:3000 |
-| **Java API** | http://localhost:8080 |
+| **React UI** | http://localhost:3001 |
+| **Java API** | http://localhost:8081 |
 | **Python ML** | http://localhost:8000 |
 | **Kafka UI** | http://localhost:8091 |
 | **API Docs** | http://localhost:8080/swagger-ui.html |
