@@ -33,7 +33,6 @@ DocIQ is a **production-grade, polyglot AI document intelligence platform** that
 | 🔄 **Streaming Tokens** | Answer tokens stream live via Kafka → WebSocket STOMP |
 | 🛡️ **JWT Auth** | Secure multi-user, with refresh tokens |
 
----
 
 ## 🏗️ Architecture
 
@@ -100,7 +99,7 @@ This starts: PostgreSQL, Zookeeper, Kafka, Redis, Java API, Python ML, React UI.
 
 ### 3. Register & Upload
 
-1. Navigate to http://localhost:3000
+1. Navigate to http://localhost:3001
 2. Register an account
 3. Upload any PDF (up to 100MB)
 4. Watch real-time ingestion progress via WebSocket
