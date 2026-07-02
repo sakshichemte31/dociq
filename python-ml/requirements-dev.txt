@@ -1,0 +1,15 @@
+# Dev / test dependencies for python-ml.
+# Install on top of requirements.txt: pip install -r requirements.txt -r requirements-dev.txt
+#
+# NOTE: none of these were declared anywhere in the original project (no
+# requirements-dev.txt, nothing in requirements.txt, nothing in pyproject.toml
+# dependencies) despite pyproject.toml configuring `asyncio_mode = "auto"` and
+# a full tests/ suite using @pytest.mark.asyncio and unittest.mock. Running
+# `pytest` after a clean `pip install -r requirements.txt` failed outright:
+# pytest itself wasn't installed, and once added, every async test failed
+# with "async def functions are not natively supported" because
+# pytest-asyncio was also missing.
+-r requirements.txt
+pytest==8.0.0
+pytest-asyncio==0.23.5
+pytest-mock==3.12.0

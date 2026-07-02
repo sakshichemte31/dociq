@@ -1,0 +1,28 @@
+# Dev override — hot-reloading React UI on :3001 instead of the static nginx build on :3000.
+# Usage: docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up -d --build
+#
+# Backend services (postgres, kafka, redis, java-api, python-ml) are unchanged.
+# Only react-ui is swapped for a Vite dev server with your local source bind-mounted,
+# so edits (including the diagnostic console.logs) show up instantly via HMR —
+# no rebuild needed.
+
+services:
+  react-ui:
+    build:
+      context: ../react-ui
+      dockerfile: Dockerfile.dev
+    # !override fully replaces (not appends to) the base file's "ports" list,
+    # so we don't end up with two host-port bindings for this one service
+    # (the base file's 3000->80 nginx mapping is meaningless in dev anyway).
+    ports: !override
+      - "${REACT_UI_DEV_PORT:-3001}:3001"
+    environment:
+      # Talk to java-api over the docker network, not localhost
+      VITE_DEV_PROXY_TARGET: "http://java-api:8080"
+    volumes:
+      - ../react-ui:/app
+      - react_ui_node_modules:/app/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3001"]
+
+volumes:
+  react_ui_node_modules:

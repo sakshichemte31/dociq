@@ -1,0 +1,232 @@
+# ============================================================
+# DocIQ — Full Platform Stack
+# Services: Java API · Python ML · React UI · PostgreSQL
+#           Kafka · Zookeeper · Redis
+# ============================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+networks:
+  dociq-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  kafka_data:
+  redis_data:
+  uploads_data:
+  faiss_data:
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dociq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dociq
+      POSTGRES_USER: dociq
+      POSTGRES_PASSWORD: "${DB_PASS:?Set DB_PASS in your .env file (see .env.example)}"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - dociq-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dociq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.3
+    container_name: dociq-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_DATA_DIR: /data
+    volumes:
+      - kafka_data:/data
+    networks:
+      - dociq-net
+    healthcheck:
+      test: ["CMD", "cub", "zk-ready", "localhost:2181", "5"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: dociq-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    ports:
+      - "${KAFKA_PORT:-29092}:29092"
+    networks:
+      - dociq-net
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: dociq-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: dociq
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "${KAFKA_UI_PORT:-8091}:8080"
+    networks:
+      - dociq-net
+    logging: *default-logging
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: dociq-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - dociq-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  # ── Application Services ────────────────────────────────────
+
+  java-api:
+    build:
+      context: ../java-api
+      dockerfile: Dockerfile
+    container_name: dociq-java-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: dociq
+      DB_USER: dociq
+      DB_PASS: "${DB_PASS:?Set DB_PASS in your .env file (see .env.example)}"
+      KAFKA_BROKERS: kafka:9092
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in your .env file, e.g. via openssl rand -hex 32}"
+      UPLOAD_DIR: /uploads
+      PYTHON_ML_URL: http://python-ml:8000
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: docker
+    volumes:
+      - uploads_data:/uploads
+    ports:
+      - "${JAVA_API_PORT:-8080}:8080"
+    networks:
+      - dociq-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging: *default-logging
+
+  python-ml:
+    build:
+      context: ../python-ml
+      dockerfile: Dockerfile
+    container_name: dociq-python-ml
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: dociq
+      DB_USER: dociq
+      DB_PASS: "${DB_PASS:?Set DB_PASS in your .env file (see .env.example)}"
+      KAFKA_BROKERS: kafka:9092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Groq — free LLM API (no credit card). Get key at https://console.groq.com
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_BASE_URL: https://api.groq.com/openai/v1
+      FAISS_INDEX_DIR: /data/faiss_indices
+      UPLOAD_DIR: /uploads
+    volumes:
+      - uploads_data:/uploads
+      - faiss_data:/data/faiss_indices
+    ports:
+      - "${PYTHON_ML_PORT:-8000}:8000"
+    networks:
+      - dociq-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s   # model loading takes time
+    logging: *default-logging
+
+  react-ui:
+    build:
+      context: ../react-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: dociq-react-ui
+    restart: unless-stopped
+    depends_on:
+      java-api:
+        condition: service_healthy
+    ports:
+      - "${REACT_UI_PORT:-3000}:80"
+    networks:
+      - dociq-net
+    logging: *default-logging

@@ -1,0 +1,31 @@
+# Secrets — never commit real values
+infra/.env
+**/.env
+!**/.env.example
+
+# Java
+java-api/target/
+*.class
+*.jar
+!java-api/.mvn/wrapper/maven-wrapper.jar
+
+# Python
+python-ml/__pycache__/
+python-ml/**/__pycache__/
+python-ml/.pytest_cache/
+python-ml/.mypy_cache/
+python-ml/.ruff_cache/
+python-ml/*.egg-info/
+python-ml/venv/
+python-ml/.venv/
+
+# Node / React
+react-ui/node_modules/
+react-ui/dist/
+react-ui/.vite/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

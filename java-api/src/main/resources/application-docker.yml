@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.dociq: INFO
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN

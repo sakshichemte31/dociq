@@ -1,0 +1,52 @@
+# Web framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# LLM — Groq via OpenAI-compatible SDK (free tier, no credit card)
+# Uses openai Python SDK with base_url pointed at api.groq.com
+openai>=1.35.0
+
+# Embeddings — local, runs on CPU, always free
+sentence-transformers==2.3.1
+
+# Vector search
+faiss-cpu==1.7.4
+
+# PDF parsing
+PyMuPDF==1.23.8
+
+# Chunking token counting
+tiktoken==0.5.2
+
+# Messaging
+# kafka-python (2.0.2, last released 2020) is unmaintained and its vendored
+# `six` shim throws `ModuleNotFoundError: No module named 'kafka.vendor.six.moves'`
+# on Python 3.12+ import machinery. kafka-python-ng is a maintained, drop-in
+# fork (same `kafka` import path) that fixes this and tracks newer brokers.
+kafka-python-ng==2.2.3
+
+# Database
+psycopg2-binary==2.9.9
+
+# Cache
+redis==5.0.1
+
+# HTTP client (for healthchecks)
+httpx==0.26.0
+
+# Config & validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Numerics
+numpy==1.26.3
+scikit-learn==1.4.0
+
+# Observability
+structlog==24.1.0
+prometheus-client==0.19.0
+
+# Resilience
+tenacity==8.2.3
+slowapi>=0.1.9
